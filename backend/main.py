@@ -641,6 +641,20 @@ def answer_live_callback(callback_query_id: str, text: str = "Decision logged"):
     except Exception:
         pass
 
+def save_telegram_chat_id(chat_id: str):
+    if not chat_id:
+        return
+    cid_str = str(chat_id).strip()
+    cfg_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "telegram_config.json"))
+    try:
+        with open(cfg_file, "w", encoding="utf-8") as f:
+            json.dump({"chat_id": cid_str}, f)
+    except Exception:
+        pass
+    import app.services.notifier as notifier
+    notifier.TELEGRAM_CHAT_ID = cid_str
+    os.environ["TELEGRAM_CHAT_ID"] = cid_str
+
 @app.get("/api/gateway/poll-incoming-replies/{tx_id}")
 def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depends(get_db)):
     """
@@ -677,18 +691,14 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                         cb_data = cb.get("data", "")
                         from_user = cb.get("from", {})
                         if from_user.get("id"):
-                            import app.services.notifier as notifier
-                            notifier.TELEGRAM_CHAT_ID = str(from_user["id"])
-                            os.environ["TELEGRAM_CHAT_ID"] = str(from_user["id"])
+                            save_telegram_chat_id(from_user["id"])
                         process_customer_reply(tx, "", button_id=cb_data, ai_mode=ai_mode, db=db)
                         answer_live_callback(cb_id, "Processed")
                     elif msg:
                         chat_obj = msg.get("chat", {})
                         chat_id = chat_obj.get("id")
                         if chat_id:
-                            import app.services.notifier as notifier
-                            notifier.TELEGRAM_CHAT_ID = str(chat_id)
-                            os.environ["TELEGRAM_CHAT_ID"] = str(chat_id)
+                            save_telegram_chat_id(chat_id)
                         
                         text = msg.get("text", "").strip()
                         if text == "/start":

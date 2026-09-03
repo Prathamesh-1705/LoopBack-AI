@@ -19,6 +19,23 @@ if os.path.exists(env_path):
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8660302674:AAHUPw12KXFQuriL_M7fno3frwdn27PHHR4")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
+def get_telegram_chat_id() -> str:
+    global TELEGRAM_CHAT_ID
+    if TELEGRAM_CHAT_ID:
+        return TELEGRAM_CHAT_ID
+    cfg_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "telegram_config.json"))
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                cid = str(data.get("chat_id", "")).strip()
+                if cid:
+                    TELEGRAM_CHAT_ID = cid
+                    return cid
+        except Exception:
+            pass
+    return os.getenv("TELEGRAM_CHAT_ID", "")
+
 # Twilio WhatsApp Business Configuration (Loaded from .env)
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
@@ -95,7 +112,8 @@ def dispatch_live_message(
     target_tx = str(tx_id or "1")
 
     # 1. Telegram Dispatch with Live Interactive Buttons
-    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+    active_chat_id = get_telegram_chat_id()
+    if TELEGRAM_BOT_TOKEN and active_chat_id:
         try:
             tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
             
@@ -117,7 +135,7 @@ def dispatch_live_message(
                 reply_markup = {"inline_keyboard": get_default_buttons(tx_id or 1)}
 
             payload = {
-                "chat_id": TELEGRAM_CHAT_ID,
+                "chat_id": active_chat_id,
                 "text": tg_card,
                 "parse_mode": "Markdown",
                 "reply_markup": reply_markup
