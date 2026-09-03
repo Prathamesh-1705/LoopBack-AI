@@ -741,8 +741,36 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                             incoming_phone = re.sub(r"\D", "", text)[-10:]
 
                         if incoming_phone and chat_id:
+                            # Retrieve active paired phone from portal session or database
+                            active_paired_phone = os.getenv("PAIRED_TESTER_PHONE", "")
+                            if not active_paired_phone:
+                                suspense_first = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).first()
+                                if suspense_first and suspense_first.remitter_phone:
+                                    active_paired_phone = re.sub(r"\D", "", str(suspense_first.remitter_phone))[-10:]
+
+                            # Check for strict match
+                            if active_paired_phone and incoming_phone != active_paired_phone:
+                                mismatch_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                                mismatch_card = (
+                                    "🏢 LOOPBACK AI ENTERPRISE\n"
+                                    "━━━━━━━━━━━━━━━━━━━━\n"
+                                    "❌ Phone Number Mismatch\n\n"
+                                    f"This Telegram phone (+91{incoming_phone}) does not match the paired phone in your LoopBack AI portal (+91{active_paired_phone}).\n\n"
+                                    f"To receive live settlement alerts on this device, please enter +91{incoming_phone} in the portal header under 'Pair Test Phone' and click 'Save & Link Device'."
+                                )
+                                try:
+                                    req_m = urllib.request.Request(
+                                        mismatch_url,
+                                        data=json.dumps({"chat_id": chat_id, "text": mismatch_card, "reply_markup": {"remove_keyboard": True}}).encode("utf-8"),
+                                        headers={"Content-Type": "application/json"}
+                                    )
+                                    urllib.request.urlopen(req_m, timeout=3)
+                                except Exception:
+                                    pass
+                                continue
+
+                            # Match verified -> link session
                             save_telegram_chat_id(chat_id, phone=incoming_phone)
-                            # Update active suspense transactions to this verified phone
                             suspense_txs = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).all()
                             for t in suspense_txs:
                                 t.remitter_phone = incoming_phone
