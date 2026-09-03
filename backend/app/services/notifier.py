@@ -39,17 +39,56 @@ def format_whatsapp_phone(phone_raw: str) -> str:
         return f"91{digits}"
     return digits
 
+def get_default_buttons(tx_id: int):
+    target_tx = str(tx_id or "1")
+    return [
+        [
+            {"text": "✅ Approve & Clear", "callback_data": f"approve_{target_tx}"},
+            {"text": "❌ Refund Account", "callback_data": f"refund_{target_tx}"}
+        ],
+        [
+            {"text": "🌐 Language (भाषा)", "callback_data": f"lang_{target_tx}"},
+            {"text": "📄 Invoice Details", "callback_data": f"inv_{target_tx}"}
+        ]
+    ]
+
+def get_language_buttons(tx_id: int):
+    target_tx = str(tx_id or "1")
+    return [
+        [
+            {"text": "🇮🇳 हिंदी (Hindi)", "callback_data": f"setlang_hi_{target_tx}"},
+            {"text": "🇮🇳 मराठी (Marathi)", "callback_data": f"setlang_mr_{target_tx}"}
+        ],
+        [
+            {"text": "🇮🇳 ગુજરાતી (Gujarati)", "callback_data": f"setlang_gu_{target_tx}"},
+            {"text": "🇮🇳 தமிழ் (Tamil)", "callback_data": f"setlang_ta_{target_tx}"}
+        ],
+        [
+            {"text": "🇮🇳 తెలుగు (Telugu)", "callback_data": f"setlang_te_{target_tx}"},
+            {"text": "🇮🇳 ಕನ್ನಡ (Kannada)", "callback_data": f"setlang_kn_{target_tx}"}
+        ],
+        [
+            {"text": "🇮🇳 বাংলা (Bengali)", "callback_data": f"setlang_bn_{target_tx}"},
+            {"text": "🇬🇧 English", "callback_data": f"setlang_en_{target_tx}"}
+        ],
+        [
+            {"text": "🔙 Back to Verification", "callback_data": f"prompt_{target_tx}"}
+        ]
+    ]
+
 def dispatch_live_message(
     to_phone: str,
     message_text: str,
     customer_name: str = "Customer",
     sender_org: str = None,
     tx_id: int = None,
-    custom_buttons: list = None
+    custom_buttons: list = None,
+    is_settled: bool = False
 ) -> dict:
     """
     Universal Live Carrier Dispatcher:
     - Dispatches rich interactive verification cards with clickable action buttons directly to Telegram & WhatsApp.
+    - If settled, removes buttons to lock decision state.
     """
     org_header = sender_org or PORTAL_BRAND_NAME
     clean_phone = format_whatsapp_phone(to_phone)
@@ -69,23 +108,19 @@ def dispatch_live_message(
                 f"🔒 _Official Enterprise Settlement Rail_"
             )
 
-            # Interactive Clickable Action Buttons
-            inline_keyboard = [
-                [
-                    {"text": "✅ Approve & Clear", "callback_data": f"approve_{target_tx}"},
-                    {"text": "❌ Refund Account", "callback_data": f"refund_{target_tx}"}
-                ],
-                [
-                    {"text": "🌐 Language (भाषा)", "callback_data": f"lang_{target_tx}"},
-                    {"text": "📄 Invoice Details", "callback_data": f"inv_{target_tx}"}
-                ]
-            ]
+            # Determine button markup
+            if is_settled:
+                reply_markup = {"inline_keyboard": []}
+            elif custom_buttons is not None:
+                reply_markup = {"inline_keyboard": custom_buttons}
+            else:
+                reply_markup = {"inline_keyboard": get_default_buttons(tx_id or 1)}
 
             payload = {
                 "chat_id": TELEGRAM_CHAT_ID,
                 "text": tg_card,
                 "parse_mode": "Markdown",
-                "reply_markup": {"inline_keyboard": inline_keyboard}
+                "reply_markup": reply_markup
             }
 
             req = urllib.request.Request(

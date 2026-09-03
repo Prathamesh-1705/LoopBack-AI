@@ -219,10 +219,10 @@ def process_customer_reply(
     db: Session = None
 ) -> Dict[str, Any]:
     """
-    Central Customer WhatsApp Conversational & Settlement Processor:
+    Central Customer WhatsApp/Telegram Conversational & Settlement Processor:
     - Handles interactive button selections (Approve, Refund, Language, Invoices, FAQs).
-    - Handles text replies with multi-lingual auto-detection.
-    - Triggers Autonomous AI reconciliation or flags pending manual approval.
+    - Handles text replies with multi-lingual auto-detection across 8 Indian languages.
+    - Locks settlement state and strips buttons upon completion.
     """
     target_key = str(target_tx.id)
     target_settled = target_tx.status in [TransactionStatus.AUTO_RESOLVED, TransactionStatus.REFUNDED, TransactionStatus.CONFIRMED_USER]
@@ -230,46 +230,47 @@ def process_customer_reply(
     org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
     now_str = datetime.now().strftime("%I:%M %p")
 
-    # If already settled, log message and notify without re-triggering actions
+    # If already settled, lock and do not process further button clicks
     if target_settled or TRANSACTION_DECISION_LOCK.get(target_key, False):
         if reply_text:
             append_chat_message(target_tx, "customer", f"{target_tx.remitter_name} (Sender)", reply_text, now_str, db)
         return {"status": target_tx.status, "message": "Transaction already settled."}
 
-    # 1. Interactive Button Actions
+    from app.services.notifier import get_default_buttons, get_language_buttons
+
     if button_id:
-        # Language Menu
-        if button_id.startswith("langmenu_"):
+        # Language Selection Menu
+        if button_id.startswith("lang_") or button_id.startswith("langmenu_") or button_id == "lang":
             lang_text = (
-                "🌐 *Please reply with your preferred language / भाषा चुनें:*\n\n"
-                "• English\n"
-                "• हिंदी (Hindi)\n"
-                "• मराठी (Marathi)\n"
-                "• ગુજરાતી (Gujarati)\n"
-                "• தமிழ் (Tamil)\n"
-                "• తెలుగు (Telugu)\n"
-                "• ಕನ್ನಡ (Kannada)\n"
-                "• বাংলা (Bengali)"
+                "🌐 *Please select your preferred language / भाषा निवडा:*\n\n"
+                "• 🇮🇳 हिंदी (Hindi)\n"
+                "• 🇮🇳 मराठी (Marathi)\n"
+                "• 🇮🇳 ગુજરાતી (Gujarati)\n"
+                "• 🇮🇳 தமிழ் (Tamil)\n"
+                "• 🇮🇳 తెలుగు (Telugu)\n"
+                "• 🇮🇳 ಕನ್ನಡ (Kannada)\n"
+                "• 🇮🇳 বাংলা (Bengali)\n"
+                "• 🇬🇧 English"
             )
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", lang_text, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, lang_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=[])
+            dispatch_live_message(target_tx.remitter_phone, lang_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_language_buttons(target_tx.id))
             return {"status": target_tx.status, "action": "LANG_MENU"}
 
-        # Set Language
+        # Set Language Callback
         elif button_id.startswith("setlang_"):
             parts = button_id.split("_")
-            code = parts[1] if len(parts) >= 3 else "en"
+            code = parts[1] if len(parts) >= 2 else "en"
             TRANSACTION_LANGUAGES[target_key] = code
             template = LOCALIZED_TEMPLATES.get(code, LOCALIZED_TEMPLATES["en"])
             localized_msg = template["greeting"].format(
                 name=target_tx.remitter_name, amount=target_tx.amount, utr=target_tx.utr_number, mode=target_tx.payment_mode
             )
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", localized_msg, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, localized_msg, target_tx.remitter_name, org_name, target_tx.id)
+            dispatch_live_message(target_tx.remitter_phone, localized_msg, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_default_buttons(target_tx.id))
             return {"status": target_tx.status, "action": "SET_LANG"}
 
-        # Invoice Details Breakdown
-        elif button_id.startswith("invoicedetails_"):
+        # Invoice Breakdown
+        elif button_id.startswith("inv_") or button_id.startswith("invoicedetails_"):
             inv = target_tx.matched_invoice if target_tx.matched_invoice else db.query(Invoice).filter(Invoice.id == target_tx.matched_invoice_id).first()
             inv_num = inv.invoice_number if inv else f"INV-2026-00{target_tx.id}"
             van = target_tx.destination_van or "RAZR_VAN_ENTERPRISE"
@@ -288,8 +289,19 @@ def process_customer_reply(
                 f"Reply *YES* to release funds to merchant or *NO* to refund."
             )
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", details_text, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, details_text, target_tx.remitter_name, org_name, target_tx.id)
+            dispatch_live_message(target_tx.remitter_phone, details_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_default_buttons(target_tx.id))
             return {"status": target_tx.status, "action": "INVOICE_DETAILS"}
+
+        # Return to main prompt
+        elif button_id.startswith("prompt_"):
+            active_lang = TRANSACTION_LANGUAGES.get(target_key, "en")
+            template = LOCALIZED_TEMPLATES.get(active_lang, LOCALIZED_TEMPLATES["en"])
+            localized_msg = template["greeting"].format(
+                name=target_tx.remitter_name, amount=target_tx.amount, utr=target_tx.utr_number, mode=target_tx.payment_mode
+            )
+            append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", localized_msg, now_str, db)
+            dispatch_live_message(target_tx.remitter_phone, localized_msg, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_default_buttons(target_tx.id))
+            return {"status": target_tx.status, "action": "MAIN_PROMPT"}
 
         # Safety & Authenticity FAQ
         elif button_id.startswith("safetyfaq_"):
@@ -299,7 +311,7 @@ def process_customer_reply(
                 name=target_tx.remitter_name, amount=target_tx.amount, utr=target_tx.utr_number
             )
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", faq_text, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, faq_text, target_tx.remitter_name, org_name, target_tx.id)
+            dispatch_live_message(target_tx.remitter_phone, faq_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_default_buttons(target_tx.id))
             return {"status": target_tx.status, "action": "SAFETY_FAQ"}
 
         elif "approve" in button_id:
@@ -339,7 +351,7 @@ def process_customer_reply(
             name=target_tx.remitter_name, amount=target_tx.amount, utr=target_tx.utr_number, mode=target_tx.payment_mode
         )
         append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", localized_msg, now_str, db)
-        dispatch_live_message(target_tx.remitter_phone, localized_msg, target_tx.remitter_name, org_name, target_tx.id)
+        dispatch_live_message(target_tx.remitter_phone, localized_msg, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=get_default_buttons(target_tx.id))
         return {"status": target_tx.status, "action": "LANGUAGE_SWITCHED"}
 
     # YES Approval Intent
@@ -358,7 +370,7 @@ def process_customer_reply(
             audit = AuditLog(
                 transaction_id=target_tx.id,
                 action="AUTO_RESOLVED",
-                details=f"Autonomous AI verified YES from WhatsApp sender {target_tx.remitter_phone}. Credited ₹{target_tx.amount:,.2f} to merchant revenue.",
+                details=f"Autonomous AI verified YES from carrier sender {target_tx.remitter_phone}. Credited ₹{target_tx.amount:,.2f} to merchant revenue.",
                 performed_by="LoopBack Autonomous AI Agent"
             )
             db.add(audit)
@@ -366,7 +378,7 @@ def process_customer_reply(
             db.refresh(target_tx)
 
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", confirm_text, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, confirm_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=[])
+            dispatch_live_message(target_tx.remitter_phone, confirm_text, target_tx.remitter_name, org_name, target_tx.id, is_settled=True)
             if target_key in TRANSACTION_PENDING_INTENTS:
                 del TRANSACTION_PENDING_INTENTS[target_key]
             return {"status": target_tx.status, "action": "APPROVED"}
@@ -387,7 +399,7 @@ def process_customer_reply(
             audit = AuditLog(
                 transaction_id=target_tx.id,
                 action="REFUNDED",
-                details=f"Autonomous AI processed NO rejection from WhatsApp sender {target_tx.remitter_phone}. Auto-refunded ₹{target_tx.amount:,.2f}.",
+                details=f"Autonomous AI processed NO rejection from carrier sender {target_tx.remitter_phone}. Auto-refunded ₹{target_tx.amount:,.2f}.",
                 performed_by="LoopBack Autonomous AI Agent"
             )
             db.add(audit)
@@ -395,7 +407,7 @@ def process_customer_reply(
             db.refresh(target_tx)
 
             append_chat_message(target_tx, "staff", "LoopBack Autonomous AI Gateway", refund_text, now_str, db)
-            dispatch_live_message(target_tx.remitter_phone, refund_text, target_tx.remitter_name, org_name, target_tx.id, custom_buttons=[])
+            dispatch_live_message(target_tx.remitter_phone, refund_text, target_tx.remitter_name, org_name, target_tx.id, is_settled=True)
             if target_key in TRANSACTION_PENDING_INTENTS:
                 del TRANSACTION_PENDING_INTENTS[target_key]
             return {"status": target_tx.status, "action": "REFUNDED"}
