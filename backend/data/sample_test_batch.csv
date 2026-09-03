@@ -1,0 +1,4 @@
+utr_number,amount,remitter_name,remitter_phone,remitter_upi,destination_van,payment_mode
+UTR202688001,42000.00,Patel Agro Exports,9711223344,patel@axisbank,RAZR8803DEL,NEFT
+UTR202688002,125000.00,NextGen Retails,9988776655,nextgen@icici,RAZR8802BLR,UPI
+UTR202688003,55000.00,Completely Random Sender,9100000000,random@paytm,WRONGVAN999,UPI
