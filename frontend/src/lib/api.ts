@@ -140,3 +140,39 @@ export async function pairTesterDevice(phoneNumber: string) {
         body: JSON.stringify({ phone_number: phoneNumber }),
     });
 }
+
+export async function getMessagePreview(txId: number, lang = "en", autoDispatch = true) {
+    return await resilientFetch(`/gateway/message-preview/${txId}?lang=${lang}&auto_dispatch=${autoDispatch}`);
+}
+
+export async function pollIncomingReplies(txId: number, aiMode: boolean) {
+    return await resilientFetch(`/gateway/poll-incoming-replies/${txId}?ai_mode=${aiMode}`);
+}
+
+export async function resendVerificationPrompt(txId: number) {
+    return await resilientFetch(`/gateway/resend-prompt/${txId}`, {
+        method: "POST",
+    });
+}
+
+export async function manualExecuteSettlement(txId: number, action: string) {
+    return await resilientFetch(`/gateway/manual-execute/${txId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+    });
+}
+
+export async function sendOperatorReply(txId: number, message: string) {
+    return await resilientFetch(`/gateway/operator-reply/${txId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+    });
+}
+
+export async function loadScenario(scenarioId: string) {
+    return await resilientFetch(`/load-scenario/${scenarioId}`, {
+        method: "POST",
+    });
+}

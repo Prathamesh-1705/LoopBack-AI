@@ -14,7 +14,13 @@ import {
   fetchOrgStatus,
   testDbConnection,
   setupOrganization,
-  pairTesterDevice
+  pairTesterDevice,
+  getMessagePreview,
+  pollIncomingReplies,
+  resendVerificationPrompt,
+  manualExecuteSettlement,
+  sendOperatorReply,
+  loadScenario
 } from "@/lib/api";
 import { Transaction, DashboardMetrics } from "@/types";
 import {
@@ -183,8 +189,7 @@ export default function Dashboard() {
     activeTxRef.current = tx;
 
     try {
-      const res = await fetch(`${API_ENDPOINT}/gateway/message-preview/${tx.id}?lang=en&auto_dispatch=true`);
-      const data = await res.json();
+      const data = await getMessagePreview(tx.id, "en", true);
       // Guard against race condition: only apply if user is still on this transaction
       if (activeTxRef.current?.id === tx.id && data.history && data.history.length > 0) {
         setChatMessages(data.history);
@@ -204,8 +209,7 @@ export default function Dashboard() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_ENDPOINT}/gateway/poll-incoming-replies/${targetTxId}?ai_mode=${aiAutonomousPilot}`);
-        const data = await res.json();
+        const data = await pollIncomingReplies(targetTxId, aiAutonomousPilot);
 
         // If transaction changed or effect unmounted while request was in-flight, ignore stale response
         if (isCancelled || activeTxRef.current?.id !== targetTxId) {
@@ -256,11 +260,7 @@ export default function Dashboard() {
     if (!activeTx || resendingPrompt) return;
     setResendingPrompt(true);
     try {
-      const res = await fetch(`${API_ENDPOINT}/gateway/resend-prompt/${activeTx.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const data = await res.json();
+      const data = await resendVerificationPrompt(activeTx.id);
       if (data && data.chat_stream) {
         setChatMessages([...data.chat_stream]);
       }
@@ -276,12 +276,7 @@ export default function Dashboard() {
   const handleManualExecution = async (action: "TRANSFER_TO_RECEIVER" | "REFUND_TO_SENDER") => {
     if (!activeTx) return;
     try {
-      const res = await fetch(`${API_ENDPOINT}/gateway/manual-execute/${activeTx.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
-      });
-      const data = await res.json();
+      const data = await manualExecuteSettlement(activeTx.id, action);
       if (data.chat_stream) {
         setChatMessages([...data.chat_stream]);
       }
@@ -313,12 +308,7 @@ export default function Dashboard() {
 
     // 2. Dispatch to backend API
     try {
-      const res = await fetch(`${API_ENDPOINT}/gateway/operator-reply/${activeTx.id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msgToSend })
-      });
-      const data = await res.json();
+      const data = await sendOperatorReply(activeTx.id, msgToSend);
       if (data && data.chat_stream) {
         setChatMessages([...data.chat_stream]);
       }
@@ -468,13 +458,8 @@ export default function Dashboard() {
   };
 
   const handleLoadScenario = async (id: string) => {
-    const token = localStorage.getItem("loopback_jwt_token");
     try {
-      const res = await fetch(`${API_ENDPOINT}/load-scenario/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-      });
-      const data = await res.json();
+      const data = await loadScenario(id);
       showToast(data.message || "Scenario loaded!");
       await loadData();
     } catch (err: any) {
