@@ -1,4 +1,10 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+function getBaseUrl(): string {
+    if (typeof window !== "undefined") {
+        const hostname = window.location.hostname || "localhost";
+        return `http://${hostname}:8000/api`;
+    }
+    return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+}
 
 function getAuthHeader(): Record<string, string> {
     if (typeof window === "undefined") return {};
@@ -12,8 +18,9 @@ async function resilientFetch(endpoint: string, options: RequestInit = {}) {
         ...(options.headers || {}),
     };
 
+    const primaryUrl = getBaseUrl();
     try {
-        const res = await fetch(`${BASE_URL}${endpoint}`, {
+        const res = await fetch(`${primaryUrl}${endpoint}`, {
             ...options,
             headers,
             cache: "no-store",
@@ -24,9 +31,9 @@ async function resilientFetch(endpoint: string, options: RequestInit = {}) {
         }
         return data;
     } catch (err: any) {
-        const fallbackUrl = BASE_URL.includes("127.0.0.1")
-            ? BASE_URL.replace("127.0.0.1", "localhost")
-            : BASE_URL.replace("localhost", "127.0.0.1");
+        const fallbackUrl = primaryUrl.includes("127.0.0.1")
+            ? primaryUrl.replace("127.0.0.1", "localhost")
+            : primaryUrl.replace("localhost", "127.0.0.1");
 
         try {
             const fallbackRes = await fetch(`${fallbackUrl}${endpoint}`, {
