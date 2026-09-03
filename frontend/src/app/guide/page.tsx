@@ -263,8 +263,12 @@ export default function GuidePage() {
                 <div className="flex items-start gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">3</span>
                   <div>
-                    <h4 className="font-bold text-white">Interact with Live Gateway</h4>
-                    <p className="text-slate-400 mt-1">Test operator chat replies by typing in the reply box at the bottom right. Click **Re-Send WhatsApp Alert** to test carrier re-dispatching.</p>
+                    <h4 className="font-bold text-white">Interact with Live Gateway (In-Portal or Telegram)</h4>
+                    <p className="text-slate-400 mt-1">
+                      <strong>Option A (In-Portal Simulator):</strong> Test operator replies by typing in the chatbox on the right.
+                      <br />
+                      <strong>Option B (Live Phone Delivery):</strong> Open Telegram, search <code className="text-cyan-400 font-mono">@loopback_settle_ai_bot</code>, tap <strong>START</strong>, and click <strong>Open Live Gateway</strong> on the portal to receive interactive cards with clickable buttons (<code className="text-emerald-400">Approve</code> / <code className="text-rose-400">Refund</code>) directly on your device!
+                    </p>
                   </div>
                 </div>
 

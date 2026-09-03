@@ -1,11 +1,11 @@
-# LoopBack AI: Autonomous Dead-Letter Settlement Engine & Conversational Gateway
+# LoopBack AI: Autonomous Dead-Letter Settlement Engine & Live Carrier Gateway
 
-[![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.0-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python)](https://python.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql)](https://www.mysql.com/)
 [![Razorpay](https://img.shields.io/badge/Razorpay-Enterprise_Inflows-0C2340?style=for-the-badge&logo=razorpay)](https://razorpay.com/)
-[![WhatsApp](https://img.shields.io/badge/WhatsApp_Business-Cloud_API-25D366?style=for-the-badge&logo=whatsapp)](https://business.whatsapp.com/)
+[![Telegram](https://img.shields.io/badge/Telegram-Live_Carrier_Bridge-2CA5E0?style=for-the-badge&logo=telegram)](https://t.me/loopback_settle_ai_bot)
 
 > **Autonomous revenue recovery and conversational suspense clearance engine for Indian banking inflows (UPI, NEFT, RTGS, IMPS).**
 
@@ -22,30 +22,50 @@ Traditionally, these funds sit frozen in a **Dead-Letter Suspense Ledger** for 3
 
 **LoopBack AI solves this completely**:
 - Correlates multi-factor signals (exact/split amounts, fuzzy remitter names, VAN prefixes, temporal proximity) in **< 0.4 seconds**.
-- Reaches out autonomously to remitters via **WhatsApp Business Cloud API** in **8 Indian languages** with interactive approval cards.
+- Reaches out autonomously to remitters via **Live Carrier Rail** in **8 Indian languages** with interactive approval cards.
 - Autonomously settles the ledger upon remitter confirmation, credits merchant revenue, and records an immutable double-entry audit trail.
 
 ---
 
 ## 🚀 One-Command Quickstart for Evaluators
 
-LoopBack AI is 100% plug-and-play. Evaluators only need to run:
+LoopBack AI is 100% plug-and-play with zero manual configuration:
 
 ```bash
 # 1. Clone Repository
-git clone https://github.com/prathameshtirmare/loopback-ai.git
-cd loopback-ai
+git clone https://github.com/Prathamesh-1705/LoopBack-AI.git
+cd LoopBack-AI
 
 # 2. Install Dependencies
 npm install
 npm install --prefix frontend
 pip install -r backend/requirements.txt
 
-# 3. Launch Platform (Auto-connects Database, Seeds Accounts & Opens Browser)
+# 3. Launch Platform (Auto-connects Database, Auto-seeds Accounts & Opens Browser)
 npm run start
 ```
 
 Your default browser will automatically open to **`http://localhost:3000`** with the full dashboard ready!
+
+---
+
+## 📱 Live Mobile Testing on Your Phone (Telegram Live Carrier Bridge)
+
+Evaluators can receive **real-time interactive settlement cards with clickable buttons** directly on their Telegram app:
+
+### 3-Step Live Carrier Activation:
+1. Open Telegram on your PC or phone and search for:
+   👉 **`@loopback_settle_ai_bot`** *(or click [https://t.me/loopback_settle_ai_bot](https://t.me/loopback_settle_ai_bot))*
+2. Click the blue **"START"** button at the bottom of the chat (or send `/start`).
+3. On the portal (**`http://localhost:3000`**), click **"Open Live Gateway"** on any dead-letter transaction (or click **"Re-Send WhatsApp Alert"**).
+
+### What You Will Receive:
+* A rich interactive settlement card will pop up in your Telegram with 4 action buttons:
+  - `✅ Approve & Clear` ➔ Settle funds and credit merchant revenue.
+  - `❌ Refund Account` ➔ Initiate instant reversal back to sender.
+  - `🌐 Language (भाषा)` ➔ Toggle 8 Indian regional languages.
+  - `📄 Invoice Details` ➔ View matching invoice breakdown.
+* **Tap any button on Telegram**, and watch the portal ledger update and clear the suspense balance in **real-time**!
 
 ---
 
@@ -74,7 +94,7 @@ On the login screen, evaluators can click any of the **5 Pre-Configured Passport
 - **`Upload CSV`**: Allows uploading custom bank statement CSVs for bulk ingest.
 - **`Audit Trail`**: Opens the tamper-proof ledger ([`/audit-trail`](http://localhost:3000/audit-trail)) recording timestamps, actions, performed-by actors, and settlement amounts.
 - **`System Guide (ⓘ)`**: Opens the interactive architectural guide ([`/guide`](http://localhost:3000/guide)).
-- **`Pair Test Phone`**: Allows evaluators to enter their personal mobile number to route live interactive settlement cards to their physical device during testing.
+- **`Pair Test Phone`**: Allows linking evaluator devices and contains the 1-click Telegram bot launcher.
 - **`Execute AI Recovery Batch`**: Runs the global correlation pass across all pending dead-letter items.
 
 ---
@@ -99,89 +119,35 @@ On the login screen, evaluators can click any of the **5 Pre-Configured Passport
 
 When an unmatched transaction arrives, LoopBack AI compares it against pending unpaid invoices across 4 weighted vectors:
 
-$$\text{Confidence Score} = (0.40 \times S_{\text{amount}}) + (0.30 \times S_{\text{remitter}}) + (0.20 \times S_{\text{van}}) + (0.10 \times S_{\text{time}})$$
+$$\text{Confidence Score} = w_1 S_{\text{amount}} + w_2 S_{\text{entity}} + w_3 S_{\text{van}} + w_4 S_{\text{temporal}}$$
 
-1. **Exact / TDS Amount Match ($40\%$)**: Exact amount match or mathematical 2% / 10% TDS tax deduction split.
-2. **Fuzzy Remitter Match ($30\%$)**: Levenshtein distance and token-set ratio between sender name and invoice customer name.
-3. **Virtual Account Prefix ($20\%$)**: Correlation of unmapped or truncated VAN strings.
-4. **Temporal Proximity ($10\%$)**: Proximity between transaction receipt timestamp and invoice due date.
+| Vector | Weight | Mathematical Logic |
+| :--- | :--- | :--- |
+| **Amount Matching ($S_{\text{amount}}$)** | **40%** | Exact match $= 1.0$. Automatic **2% TDS split** ($\text{Amount} \times 0.98$) $= 0.95$. Partial split $= 0.70$. |
+| **Entity Fuzzy Match ($S_{\text{entity}}$)** | **30%** | Levenshtein token sort ratio between remitter corporate name and registered business name. |
+| **VAN Substring ($S_{\text{van}}$)** | **20%** | Prefix and suffix match against customer Virtual Account registry. |
+| **Temporal Proximity ($S_{\text{temporal}}$)** | **10%** | Gaussian decay based on invoice due date ($\Delta t \le 72\text{ hours} = 1.0$). |
 
 ---
 
-## 🌐 Multi-Lingual NLP Engine (8 Indian Languages)
+## 🇮🇳 Multilingual Indian Language Matrix (8 Regional Dialects)
 
-LoopBack AI autonomously detects and converses in 8 regional languages:
+LoopBack AI supports 8 Indian languages with localized prompts, currency formatting (₹), and natural conversational responses:
 
-| Language | Approval Keywords | Rejection Keywords | Regional Greeting Example |
+| Language | Script | Approval Intent Keywords | Reversal / Refund Keywords |
 | :--- | :--- | :--- | :--- |
-| **English** | `YES`, `Approve`, `Confirm`, `1` | `NO`, `Reject`, `Refund`, `2` | *"Razorpay Payment Alert: Hello..."* |
-| **Marathi (मराठी)** | `होय`, `मंजूर`, `हो` | `नाही`, `रद्द`, `परत` | *"रेझरपे पेमेंट सूचना: नमस्कार..."* |
-| **Hindi (हिन्दी)** | `हाँ`, `स्वीकार`, `हा` | `नहीं`, `अस्वीकार`, `वापस` | *"रेज़रपे भुगतान सूचना: नमस्ते..."* |
-| **Gujarati (ગુજરાતી)** | `હા`, `મંજૂર` | `ના`, `રદ`, `પાછા` | *"રેઝરપે ચુકવણી ચેતવણી: નમસ્તે..."* |
-| **Tamil (தமிழ்)** | `ஆம்`, `ஒப்புதல்` | `இல்லை`, `நிராகரி` | *"ரேஸர்பே கட்டண எச்சரிக்கை: வணக்கம்..."* |
-| **Telugu (తెలుగు)** | `అవును`, `ఆమోదించు` | `కాదు`, `తిరస్కరించు` | *"రేజర్‌పే చెల్లింపు హెచ్చరిక: నమస్కారం..."* |
-| **Kannada (ಕನ್ನಡ)** | `ಹೌದು`, `ಒಪ್ಪಿಗೆ` | `ಇಲ್ಲ`, `ತಿರಸ್ಕರಿಸಿ` | *"ರೇಜರ್‌ಪೇ ಪಾವತಿ ಎಚ್ಚರಿಕೆ: ನಮಸ್ಕಾರ..."* |
-| **Bengali (বাংলা)** | `হ্যাঁ`, `অনুমোদন` | `না`, `বাতিল` | *"রেজারপে পেমেন্ট সতর্কতা: নমস্কার..."* |
+| **English** | Latin | `YES`, `APPROVE`, `CONFIRM`, `CLEAR`, `1` | `NO`, `REFUND`, `WRONG`, `CANCEL`, `2` |
+| **Hindi (हिंदी)** | Devanagari | `हाँ`, `स्वीकार`, `सही है`, `भुगतान करें`, `1` | `नहीं`, `वापस करें`, `गलत है`, `रद्द करें`, `2` |
+| **Marathi (मराठी)** | Devanagari | `होय`, `मंजूर`, `पैसे जमा करा`, `बरोबर`, `1` | `नाही`, `परत करा`, `चूक`, `रद्द`, `2` |
+| **Gujarati (ગુજરાતી)** | Gujarati | `હા`, `મંજૂર`, `બરાબર`, `જમા કરો`, `1` | `ના`, `પાછા આપો`, `ખોટું`, `રદ`, `2` |
+| **Tamil (தமிழ்)** | Tamil | `ஆம்`, `சரி`, `ஏற்றுக்கொள்`, `1` | `இல்லை`, `தவறு`, `திரும்பப்பெறு`, `2` |
+| **Telugu (తెలుగు)** | Telugu | `అవును`, `సరే`, `ఆమోదించండి`, `1` | `కాదు`, `తప్పు`, `వాపసు చేయండి`, `2` |
+| **Kannada (ಕನ್ನಡ)** | Kannada | `ಹೌದು`, `ಸರಿ`, `ಅನುಮೋದಿಸಿ`, `1` | `ಇಲ್ಲ`, `ತಪ್ಪು`, `ಮರುಪಾವತಿಸಿ`, `2` |
+| **Bengali (বাংলা)** | Bengali | `হ্যাঁ`, `অনুমোদন`, `ঠিক আছে`, `1` | `না`, `ভুল`, `ফেরত দিন`, `2` |
 
 ---
 
-## 🏗️ Technical Architecture
+## 📄 License & Intellectual Property
 
-```mermaid
-graph TD
-    A[Inbound Banking Inflows] -->|UPI / NEFT / RTGS| B[Dead-Letter Suspense Queue]
-    B --> C[LoopBack Signal Correlator]
-    C -->|Fuzzy Match & TDS Math| D[Pending Invoice Registry]
-    C -->|Confidence Score Calculated| E[Live Conversational Gateway]
-    E -->|Meta Cloud API / Twilio| F[Customer WhatsApp Device]
-    F -->|Customer Taps Approve / YES| E
-    E -->|Autonomous AI Pilot| G[Merchant Revenue Credited]
-    E -->|Audit Event Logged| H[Immutable Double-Entry Ledger]
-```
-
----
-
-## 📁 Repository Structure
-
-```text
-loopback-ai/
-├── backend/
-│   ├── app/
-│   │   ├── db/
-│   │   │   ├── database.py         # MySQL connection with SQLite fallback
-│   │   │   └── seed_data.py        # 5 Tester passports & suspense scenarios
-│   │   ├── models/
-│   │   │   └── schema_models.py    # SQLAlchemy models & audit logs
-│   │   └── services/
-│   │       ├── auth.py             # JWT authentication & password hashing
-│   │       ├── notifier.py         # Live carrier dispatcher
-│   │       └── agent.py            # Signal correlation scoring engine
-│   ├── main.py                     # FastAPI application & webhook endpoints
-│   └── requirements.txt            # Python dependencies
-├── frontend/
-│   ├── src/
-│   │   └── app/
-│   │       ├── page.tsx            # Main settlement dashboard & live gateway
-│   │       ├── audit-trail/        # Immutable double-entry ledger page
-│   │       └── guide/              # Interactive system guide & architecture
-│   ├── package.json
-│   └── tailwind.config.ts
-├── launch.js                       # Zero-setup cross-platform browser launcher
-├── package.json                    # Root launcher scripts
-└── README.md                       # Comprehensive documentation
-```
-
----
-
-## 🔒 Security & Enterprise Governance
-- **Double-Entry Ledger Integrity**: Every automated credit release creates reciprocal debit/credit entries.
-- **Role-Based Access Control (RBAC)**: Enforced via cryptographic RS256/HS256 JWT tokens.
-- **Interactive Decision Lock**: In-memory and database locks prevent duplicate settlement execution on high-concurrency replays.
-- **Fail-Safe Self-Healing**: Database engine automatically starts MySQL service with automatic fallback to embedded SQLite.
-
----
-
-## 👥 Lead Authors
-- **Prathamesh Tirmare** — *Lead Architect & Full-Stack Engineer* (prathamesh@loopback.ai)
-
-*Built for the Razorpay Innovation & Autonomous Settlement Challenge.*
+Built for the **Razorpay Enterprise Inflow & Autonomous Settlement Track**.
+Licensed under the Apache 2.0 License.
