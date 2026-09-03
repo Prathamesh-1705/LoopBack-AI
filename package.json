@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n \"BACKEND,FRONTEND,BROWSER\" -c \"magenta,cyan,yellow\" \"python -m uvicorn main:app --reload --port 8000 --app-dir ./backend\" \"npm run dev --prefix frontend\" \"node launch.js\"",
+    "dev": "concurrently -n \"BACKEND,FRONTEND,BROWSER\" -c \"magenta,cyan,yellow\" \"python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir ./backend\" \"npm run dev --prefix frontend\" \"node launch.js\"",
     "start": "npm run dev",
-    "dev:backend": "python -m uvicorn main:app --reload --port 8000 --app-dir ./backend",
+    "dev:backend": "python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir ./backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "seed": "node -e \"const { spawn } = require('child_process'); const p = spawn('python', ['-m', 'app.db.seed_data'], { cwd: './backend', stdio: 'inherit', shell: true }); p.on('exit', code => process.exit(code));\""
   },
