@@ -104,9 +104,9 @@ def seed():
         Invoice(
             invoice_number="INV-2026-001",
             customer_name="Prathamesh Tirmare",
-            customer_phone="9699246283",
+            customer_phone="9876543210",
             amount=50000.0,
-            virtual_account_number="RAZR_VAN_969924",
+            virtual_account_number="RAZR_VAN_987654",
             due_date=datetime.now(timezone.utc) - timedelta(days=2),
             status=InvoiceStatus.UNPAID
         ),
@@ -154,12 +154,12 @@ def seed():
     transactions = [
         # Exactly ONE transaction for Prathamesh Tirmare
         IncomingTransaction(
-            utr_number="UTR_LIVE_9699246283",
+            utr_number="UTR_LIVE_9876543210",
             amount=50000.0,
             remitter_name="Prathamesh Tirmare",
-            remitter_phone="9699246283",
+            remitter_phone="9876543210",
             remitter_upi="prathamesh@upi",
-            destination_van="RAZR_UNMAPPED_9699",
+            destination_van="RAZR_UNMAPPED_9876",
             payment_mode="UPI",
             status=TransactionStatus.SUSPENSE,
             confidence_score=0.0

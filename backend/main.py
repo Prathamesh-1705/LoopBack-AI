@@ -800,7 +800,7 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                                     "🏢 LOOPBACK AI ENTERPRISE\n"
                                     "━━━━━━━━━━━━━━━━━━━━\n"
                                     "🔒 Device Phone Verification Required\n\n"
-                                    "To link your Telegram app with your active portal session, please tap the button below to share your phone number, or type your 10-digit mobile number (e.g. 8788031047):"
+                                    "To link your Telegram app with your active portal session, please tap the button below to share your phone number, or type your 10-digit mobile number (e.g. 9876543210):"
                                 )
                                 try:
                                     req_v = urllib.request.Request(

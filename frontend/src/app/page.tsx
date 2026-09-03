@@ -1286,7 +1286,7 @@ export default function Dashboard() {
                   type="tel"
                   value={testerPhoneInput}
                   onChange={(e) => setTesterPhoneInput(e.target.value)}
-                  placeholder="e.g. 9699246283"
+                  placeholder="e.g. 9876543210"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 font-mono text-sm"
                   required
                 />
