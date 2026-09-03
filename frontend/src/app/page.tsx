@@ -1262,17 +1262,26 @@ export default function Dashboard() {
             </div>
 
             <form onSubmit={handlePairTesterDevice} className="mt-4 space-y-4 text-xs">
-              <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2">
-                <span className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Safe & Private Testing
+              <div className="bg-gradient-to-r from-cyan-950/80 to-blue-950/60 p-3.5 rounded-2xl border border-cyan-800/80 space-y-2">
+                <span className="text-[11px] font-bold text-cyan-300 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5"><Send className="w-3.5 h-3.5 text-cyan-400" /> Telegram Live Bot</span>
+                  <span className="text-[10px] bg-cyan-900/90 text-cyan-200 px-2 py-0.5 rounded-full font-mono font-bold">@loopback_settle_ai_bot</span>
                 </span>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Enter your mobile number to route live interactive verification cards with clickable buttons (<code className="text-emerald-400">Approve</code> / <code className="text-rose-400">Refund</code>) directly to your device during testing.
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Open the official evaluation bot in Telegram and tap <strong className="text-white font-mono">START</strong> to receive live interactive settlement cards with clickable buttons:
                 </p>
+                <a
+                  href="https://t.me/loopback_settle_ai_bot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded-xl text-xs transition-all shadow-md"
+                >
+                  <Send className="w-3.5 h-3.5" /> 1-Click Open Telegram Bot
+                </a>
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1.5">Your 10-Digit Mobile Number</label>
+                <label className="block text-slate-300 font-semibold mb-1.5">Or Enter Your 10-Digit Mobile Number (WhatsApp / Phone)</label>
                 <input
                   type="tel"
                   value={testerPhoneInput}

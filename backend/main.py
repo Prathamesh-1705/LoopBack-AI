@@ -615,7 +615,7 @@ async def receive_twilio_whatsapp_webhook(request: Request, db: Session = Depend
     return "<Response></Response>"
 
 def answer_live_callback(callback_query_id: str, text: str = "Decision logged"):
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "7963363321:AAGy4-q6zT3tI5_e_w2f7U5o0h3o0IqZ6s8")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "8660302674:AAHUPw12KXFQuriL_M7fno3frwdn27PHHR4")
     if not bot_token:
         return
     try:
@@ -639,7 +639,7 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "7963363321:AAGy4-q6zT3tI5_e_w2f7U5o0h3o0IqZ6s8")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "8660302674:AAHUPw12KXFQuriL_M7fno3frwdn27PHHR4")
     if bot_token and tx.status == TransactionStatus.SUSPENSE:
         try:
             url = f"https://api.telegram.org/bot{bot_token}/getUpdates"
@@ -659,15 +659,44 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                     if cb:
                         cb_id = cb.get("id")
                         cb_data = cb.get("data", "")
+                        from_user = cb.get("from", {})
+                        if from_user.get("id"):
+                            import app.services.notifier as notifier
+                            notifier.TELEGRAM_CHAT_ID = str(from_user["id"])
+                            os.environ["TELEGRAM_CHAT_ID"] = str(from_user["id"])
                         process_customer_reply(tx, "", button_id=cb_data, ai_mode=ai_mode, db=db)
                         answer_live_callback(cb_id, "Processed")
                     elif msg:
+                        chat_obj = msg.get("chat", {})
+                        chat_id = chat_obj.get("id")
+                        if chat_id:
+                            import app.services.notifier as notifier
+                            notifier.TELEGRAM_CHAT_ID = str(chat_id)
+                            os.environ["TELEGRAM_CHAT_ID"] = str(chat_id)
+                        
                         text = msg.get("text", "").strip()
-                        if text:
+                        if text == "/start":
+                            welcome_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                            welcome_card = (
+                                "🏢 *LOOPBACK AI SETTLEMENT GATEWAY*\n"
+                                "━━━━━━━━━━━━━━━━━━━━\n"
+                                "✅ *Telegram Live Carrier Rail Connected!*\n\n"
+                                "You are now linked to the live settlement engine. Any suspense alerts triggered in the portal will appear here with clickable action buttons.\n"
+                                "━━━━━━━━━━━━━━━━━━━━\n"
+                                "🔒 _Official Enterprise Settlement Rail_"
+                            )
+                            try:
+                                req_w = urllib.request.Request(
+                                    welcome_url,
+                                    data=json.dumps({"chat_id": chat_id, "text": welcome_card, "parse_mode": "Markdown"}).encode("utf-8"),
+                                    headers={"Content-Type": "application/json"}
+                                )
+                                urllib.request.urlopen(req_w, timeout=3)
+                            except Exception:
+                                pass
+                        elif text:
                             process_customer_reply(tx, text, button_id=None, ai_mode=ai_mode, db=db)
                             
-                if max_update_id > 0:
-                    try:
                         ack_url = f"https://api.telegram.org/bot{bot_token}/getUpdates?offset={max_update_id + 1}"
                         urllib.request.urlopen(urllib.request.Request(ack_url), timeout=2)
                     except Exception:
