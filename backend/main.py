@@ -641,14 +641,47 @@ def answer_live_callback(callback_query_id: str, text: str = "Decision logged"):
     except Exception:
         pass
 
-def save_telegram_chat_id(chat_id: str):
+TELEGRAM_VERIFIED_PHONES: Dict[str, str] = {}  # chat_id -> phone
+
+def get_verified_phone_for_chat(chat_id: str) -> Optional[str]:
+    cid = str(chat_id).strip()
+    if cid in TELEGRAM_VERIFIED_PHONES:
+        return TELEGRAM_VERIFIED_PHONES[cid]
+    cfg_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "telegram_config.json"))
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("chat_id") == cid and data.get("phone"):
+                    TELEGRAM_VERIFIED_PHONES[cid] = data["phone"]
+                    return data["phone"]
+        except Exception:
+            pass
+    return None
+
+def save_telegram_chat_id(chat_id: str, phone: str = None):
     if not chat_id:
         return
     cid_str = str(chat_id).strip()
     cfg_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "telegram_config.json"))
+    
+    current_data = {}
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                current_data = json.load(f)
+        except Exception:
+            pass
+
+    current_data["chat_id"] = cid_str
+    if phone:
+        phone_clean = re.sub(r"\D", "", str(phone))[-10:]
+        current_data["phone"] = phone_clean
+        TELEGRAM_VERIFIED_PHONES[cid_str] = phone_clean
+
     try:
         with open(cfg_file, "w", encoding="utf-8") as f:
-            json.dump({"chat_id": cid_str}, f)
+            json.dump(current_data, f)
     except Exception:
         pass
     import app.services.notifier as notifier
@@ -696,14 +729,45 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                         answer_live_callback(cb_id, "Processed")
                     elif msg:
                         chat_obj = msg.get("chat", {})
-                        chat_id = chat_obj.get("id")
-                        if chat_id:
-                            save_telegram_chat_id(chat_id)
-                        
+                        chat_id = str(chat_obj.get("id", ""))
+                        contact = msg.get("contact")
                         text = msg.get("text", "").strip()
-                        target_prompt_tx = tx if (tx and tx.status == TransactionStatus.SUSPENSE) else db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).first()
 
-                        if text == "/start" or text.lower() in ["hi", "hello", "start", "menu"]:
+                        # 1. Contact / Phone Number Sharing from Telegram
+                        incoming_phone = None
+                        if contact and contact.get("phone_number"):
+                            incoming_phone = re.sub(r"\D", "", str(contact["phone_number"]))[-10:]
+                        elif text and re.match(r"^(?:\+?91)?[6-9]\d{9}$", text.replace(" ", "").replace("-", "")):
+                            incoming_phone = re.sub(r"\D", "", text)[-10:]
+
+                        if incoming_phone and chat_id:
+                            save_telegram_chat_id(chat_id, phone=incoming_phone)
+                            # Update active suspense transactions to this verified phone
+                            suspense_txs = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).all()
+                            for t in suspense_txs:
+                                t.remitter_phone = incoming_phone
+                            db.commit()
+
+                            # Send verification confirmation & remove keyboard
+                            ack_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                            ack_card = (
+                                "🏢 LOOPBACK AI ENTERPRISE\n"
+                                "━━━━━━━━━━━━━━━━━━━━\n"
+                                f"✅ Device Verified: +91{incoming_phone}\n\n"
+                                "Your Telegram account is successfully paired to the LoopBack settlement portal. Any live alerts triggered will appear here."
+                            )
+                            try:
+                                req_ack = urllib.request.Request(
+                                    ack_url,
+                                    data=json.dumps({"chat_id": chat_id, "text": ack_card, "reply_markup": {"remove_keyboard": True}}).encode("utf-8"),
+                                    headers={"Content-Type": "application/json"}
+                                )
+                                urllib.request.urlopen(req_ack, timeout=3)
+                            except Exception:
+                                pass
+
+                            # Send the active transaction card
+                            target_prompt_tx = tx if (tx and tx.status == TransactionStatus.SUSPENSE) else (suspense_txs[0] if suspense_txs else None)
                             if target_prompt_tx:
                                 settings = db.query(OrganizationSettings).first()
                                 org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
@@ -716,12 +780,64 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                                     mode=target_prompt_tx.payment_mode
                                 )
                                 dispatch_live_message(
-                                    to_phone=target_prompt_tx.remitter_phone,
+                                    to_phone=incoming_phone,
                                     message_text=prompt_text,
                                     customer_name=target_prompt_tx.remitter_name,
                                     sender_org=org_name,
                                     tx_id=target_prompt_tx.id
                                 )
+                            continue
+
+                        # 2. Check if user is verified before processing
+                        verified_phone = get_verified_phone_for_chat(chat_id)
+                        target_prompt_tx = tx if (tx and tx.status == TransactionStatus.SUSPENSE) else db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).first()
+
+                        if text == "/start" or text.lower() in ["hi", "hello", "start"]:
+                            if not verified_phone:
+                                # Prompt for phone verification
+                                verify_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                                verify_card = (
+                                    "🏢 LOOPBACK AI ENTERPRISE\n"
+                                    "━━━━━━━━━━━━━━━━━━━━\n"
+                                    "🔒 Device Phone Verification Required\n\n"
+                                    "To link your Telegram app with your active portal session, please tap the button below to share your phone number, or type your 10-digit mobile number (e.g. 8788031047):"
+                                )
+                                try:
+                                    req_v = urllib.request.Request(
+                                        verify_url,
+                                        data=json.dumps({
+                                            "chat_id": chat_id,
+                                            "text": verify_card,
+                                            "reply_markup": {
+                                                "keyboard": [[{"text": "📱 Share My Phone Number", "request_contact": True}]],
+                                                "resize_keyboard": True,
+                                                "one_time_keyboard": True
+                                            }
+                                        }).encode("utf-8"),
+                                        headers={"Content-Type": "application/json"}
+                                    )
+                                    urllib.request.urlopen(req_v, timeout=3)
+                                except Exception:
+                                    pass
+                            else:
+                                if target_prompt_tx:
+                                    settings = db.query(OrganizationSettings).first()
+                                    org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
+                                    active_lang = TRANSACTION_LANGUAGES.get(str(target_prompt_tx.id), "en")
+                                    template = LOCALIZED_TEMPLATES.get(active_lang, LOCALIZED_TEMPLATES["en"])
+                                    prompt_text = template["greeting"].format(
+                                        name=target_prompt_tx.remitter_name,
+                                        amount=target_prompt_tx.amount,
+                                        utr=target_prompt_tx.utr_number,
+                                        mode=target_prompt_tx.payment_mode
+                                    )
+                                    dispatch_live_message(
+                                        to_phone=verified_phone,
+                                        message_text=prompt_text,
+                                        customer_name=target_prompt_tx.remitter_name,
+                                        sender_org=org_name,
+                                        tx_id=target_prompt_tx.id
+                                    )
                         elif text:
                             process_customer_reply(tx, text, button_id=None, ai_mode=ai_mode, db=db)
                             
