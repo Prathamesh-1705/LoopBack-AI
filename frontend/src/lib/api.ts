@@ -1,11 +1,3 @@
-function getBaseUrl(): string {
-    if (typeof window !== "undefined") {
-        const hostname = window.location.hostname || "localhost";
-        return `http://${hostname}:8000/api`;
-    }
-    return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
-}
-
 function getAuthHeader(): Record<string, string> {
     if (typeof window === "undefined") return {};
     const token = localStorage.getItem("loopback_jwt_token");
@@ -18,38 +10,33 @@ async function resilientFetch(endpoint: string, options: RequestInit = {}) {
         ...(options.headers || {}),
     };
 
-    const primaryUrl = getBaseUrl();
-    try {
-        const res = await fetch(`${primaryUrl}${endpoint}`, {
-            ...options,
-            headers,
-            cache: "no-store",
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            throw new Error(data.detail || data.message || `HTTP Error ${res.status}`);
-        }
-        return data;
-    } catch (err: any) {
-        const fallbackUrl = primaryUrl.includes("127.0.0.1")
-            ? primaryUrl.replace("127.0.0.1", "localhost")
-            : primaryUrl.replace("localhost", "127.0.0.1");
+    // Candidate URLs: Same-origin Next.js proxy, 127.0.0.1, localhost
+    const candidateUrls = [
+        `/api${endpoint}`,
+        `http://127.0.0.1:8000/api${endpoint}`,
+        `http://localhost:8000/api${endpoint}`,
+    ];
 
+    let lastError: any = null;
+
+    for (const url of candidateUrls) {
         try {
-            const fallbackRes = await fetch(`${fallbackUrl}${endpoint}`, {
+            const res = await fetch(url, {
                 ...options,
                 headers,
                 cache: "no-store",
             });
-            const data = await fallbackRes.json().catch(() => ({}));
-            if (!fallbackRes.ok) {
-                throw new Error(data.detail || data.message || `HTTP Error ${fallbackRes.status}`);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.detail || data.message || `HTTP Error ${res.status}`);
             }
             return data;
-        } catch (innerErr: any) {
-            throw new Error(innerErr.message || "Failed to reach backend API.");
+        } catch (err: any) {
+            lastError = err;
         }
     }
+
+    throw new Error(lastError?.message || "Failed to reach backend API.");
 }
 
 export async function fetchOrgStatus() {
