@@ -51,21 +51,29 @@ Your default browser will automatically open to **`http://localhost:3000`** with
 
 ## 📱 Live Mobile Testing on Your Phone (Telegram Live Carrier Bridge)
 
-Evaluators can receive **real-time interactive settlement cards with clickable buttons** directly on their Telegram app:
+Evaluators can receive **real-time interactive settlement cards with clickable action buttons** directly on their own mobile device or desktop Telegram app:
 
-### 3-Step Live Carrier Activation:
-1. Open Telegram on your PC or phone and search for:
-   👉 **`@loopback_settle_ai_bot`** *(or click [https://t.me/loopback_settle_ai_bot](https://t.me/loopback_settle_ai_bot))*
-2. Click the blue **"START"** button at the bottom of the chat (or send `/start`).
-3. On the portal (**`http://localhost:3000`**), click **"Open Live Gateway"** on any dead-letter transaction (or click **"Re-Send WhatsApp Alert"**).
+### 3-Step Live Carrier Activation for Evaluators:
+1. **Pair Your Test Phone in the Portal**:
+   - In the top navigation bar of the portal (`http://localhost:3000`), click **`📱 Pair Test Phone`**.
+   - Type your 10-digit mobile number (e.g. `9604770595` or `9699246283`) and click **"Save & Link Device"**.
+2. **Open Telegram on THAT Device**:
+   - Open Telegram on the phone or computer where you want to receive alerts and search for:
+     👉 **`@loopback_settle_ai_bot`** *(or click [https://t.me/loopback_settle_ai_bot](https://t.me/loopback_settle_ai_bot))*
+   - Tap the blue **"START"** button at the bottom of the chat (or send `/start`).
+3. **Trigger Real-Time Suspense Clearance**:
+   - In the portal, click **"Open Live Gateway"** on any dead-letter transaction (or click **"Re-Send WhatsApp Alert"**).
 
-### What You Will Receive:
-* A rich interactive settlement card will pop up in your Telegram with 4 action buttons:
-  - `✅ Approve & Clear` ➔ Settle funds and credit merchant revenue.
-  - `❌ Refund Account` ➔ Initiate instant reversal back to sender.
-  - `🌐 Language (भाषा)` ➔ Toggle 8 Indian regional languages.
-  - `📄 Invoice Details` ➔ View matching invoice breakdown.
-* **Tap any button on Telegram**, and watch the portal ledger update and clear the suspense balance in **real-time**!
+> [!NOTE]
+> **How Telegram Routing Works:** Telegram delivers messages to whichever **Telegram app / account taps START**. When you tap `START` from your phone, the bot pairs with that device, and the interactive verification card will arrive with your linked number: `📱 Linked Device: +91<Your_Number>`.
+
+### What You Will Receive on Telegram:
+* A rich interactive settlement card will pop up on your device with 4 clickable action buttons:
+  - `✅ Approve & Clear` ➔ Settle funds and credit merchant revenue immediately.
+  - `❌ Refund Account` ➔ Initiate instant automated reversal back to sender.
+  - `🌐 Language (भाषा)` ➔ Toggle 8 Indian regional languages (*Hindi, Marathi, Gujarati, Tamil, Telugu, Kannada, Bengali, English*).
+  - `📄 Invoice Details` ➔ View complete enterprise invoice breakdown.
+* **Tap any button on Telegram**, and watch the portal ledger update, credit merchant revenue, and log the double-entry audit record in **real-time**!
 
 ---
 

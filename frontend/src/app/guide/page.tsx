@@ -263,11 +263,17 @@ export default function GuidePage() {
                 <div className="flex items-start gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center shrink-0 text-xs">3</span>
                   <div>
-                    <h4 className="font-bold text-white">Interact with Live Gateway (In-Portal or Telegram)</h4>
-                    <p className="text-slate-400 mt-1">
+                    <h4 className="font-bold text-white">Interact with Live Gateway (In-Portal or Telegram Mobile)</h4>
+                    <p className="text-slate-400 mt-1 leading-relaxed">
                       <strong>Option A (In-Portal Simulator):</strong> Test operator replies by typing in the chatbox on the right.
                       <br />
-                      <strong>Option B (Live Phone Delivery):</strong> Open Telegram, search <code className="text-cyan-400 font-mono">@loopback_settle_ai_bot</code>, tap <strong>START</strong>, and click <strong>Open Live Gateway</strong> on the portal to receive interactive cards with clickable buttons (<code className="text-emerald-400">Approve</code> / <code className="text-rose-400">Refund</code>) directly on your device!
+                      <strong>Option B (Live Phone Delivery):</strong>
+                      <br />
+                      1. Click <span className="text-purple-400 font-bold">"Pair Test Phone"</span> in the top navigation bar and enter your mobile number.
+                      <br />
+                      2. Open Telegram on <strong>that device</strong>, search for <code className="text-cyan-400 font-mono">@loopback_settle_ai_bot</code>, and tap <strong>START</strong>.
+                      <br />
+                      3. Click <strong>Open Live Gateway</strong> on any transaction in the portal to receive rich interactive cards with 4 action buttons (<code className="text-emerald-400">Approve</code>, <code className="text-rose-400">Refund</code>, <code className="text-cyan-400">Language</code>, <code className="text-purple-400">Invoice</code>) directly on your device!
                     </p>
                   </div>
                 </div>
