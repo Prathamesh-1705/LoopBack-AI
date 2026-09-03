@@ -13,7 +13,8 @@ import {
   fetchCurrentUser,
   fetchOrgStatus,
   testDbConnection,
-  setupOrganization
+  setupOrganization,
+  pairTesterDevice
 } from "@/lib/api";
 import { Transaction, DashboardMetrics } from "@/types";
 import {
@@ -415,13 +416,7 @@ export default function Dashboard() {
     if (!testerPhoneInput.trim()) return;
     setPairingLoading(true);
     try {
-      const res = await fetch(`${API_ENDPOINT}/gateway/tester-device-pair`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number: testerPhoneInput })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Pairing failed");
+      const data = await pairTesterDevice(testerPhoneInput);
       showToast(data.message || "Device linked successfully!");
       setShowPairModal(false);
       await loadData();
@@ -755,13 +750,7 @@ export default function Dashboard() {
                     setLoginPassword(t.pass);
                     setAuthLoading(true);
                     try {
-                      const res = await fetch(`${API_ENDPOINT}/auth/login`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ employee_id_or_email: t.emp, password: t.pass })
-                      });
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data.detail || "Login failed");
+                      const data = await loginUser(t.emp, t.pass);
                       localStorage.setItem("loopback_jwt_token", data.access_token);
                       setCurrentUser(data.user);
                       showToast(`⚡ Signed in as ${t.name} (${t.role})`);

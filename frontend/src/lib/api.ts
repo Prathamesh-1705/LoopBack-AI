@@ -138,3 +138,11 @@ export async function resetDatabase() {
         method: "POST",
     });
 }
+
+export async function pairTesterDevice(phoneNumber: string) {
+    return await resilientFetch("/gateway/tester-device-pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_number: phoneNumber }),
+    });
+}
