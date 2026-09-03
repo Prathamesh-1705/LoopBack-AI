@@ -743,38 +743,37 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
         "pending_intent": TRANSACTION_PENDING_INTENTS.get(key, None)
     }
 
+class TesterDevicePairPayload(BaseModel):
+    phone_number: str
+
+@app.post("/api/gateway/tester-device-pair")
+def pair_tester_device_route(payload: TesterDevicePairPayload, db: Session = Depends(get_db)):
+    clean_digits = re.sub(r"\D", "", payload.phone_number)
+    if not clean_digits or len(clean_digits) < 10:
+        raise HTTPException(status_code=400, detail="Please provide a valid 10-digit mobile number.")
+    
+    clean_digits = clean_digits[-10:]
+    
+    # 1. Update all active suspense transactions so their remitter_phone matches the paired evaluator device
+    suspense_txs = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).all()
+    for tx in suspense_txs:
+        tx.remitter_phone = clean_digits
+    db.commit()
+
+    os.environ["PAIRED_TESTER_PHONE"] = clean_digits
+
+    return {
+        "success": True,
+        "message": f"Successfully paired evaluator device (+91{clean_digits})! All live alerts are now synchronized to your phone.",
+        "phone": clean_digits
+    }
+
 class PairPhonePayload(BaseModel):
     phone: str
 
 @app.post("/api/gateway/pair-phone")
 def pair_evaluator_phone(payload: PairPhonePayload, db: Session = Depends(get_db)):
-    clean_phone = re.sub(r"\D", "", payload.phone)
-    if clean_phone:
-        suspense_txs = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).all()
-        for t in suspense_txs:
-            t.remitter_phone = clean_phone
-        db.commit()
-
-        active_chat_id = get_telegram_chat_id()
-        if active_chat_id and suspense_txs:
-            latest_tx = suspense_txs[0]
-            settings = db.query(OrganizationSettings).first()
-            org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
-            template = LOCALIZED_TEMPLATES["en"]
-            prompt_text = template["greeting"].format(
-                name=latest_tx.remitter_name,
-                amount=latest_tx.amount,
-                utr=latest_tx.utr_number,
-                mode=latest_tx.payment_mode
-            )
-            dispatch_live_message(
-                to_phone=clean_phone,
-                message_text=prompt_text,
-                customer_name=latest_tx.remitter_name,
-                sender_org=org_name,
-                tx_id=latest_tx.id
-            )
-    return {"success": True, "phone": clean_phone}
+    return pair_tester_device_route(TesterDevicePairPayload(phone_number=payload.phone), db=db)
 
 @app.post("/api/gateway/resend-prompt/{tx_id}")
 def resend_verification_prompt_route(tx_id: int, db: Session = Depends(get_db)):
