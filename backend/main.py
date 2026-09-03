@@ -697,6 +697,8 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                         elif text:
                             process_customer_reply(tx, text, button_id=None, ai_mode=ai_mode, db=db)
                             
+                if max_update_id > 0:
+                    try:
                         ack_url = f"https://api.telegram.org/bot{bot_token}/getUpdates?offset={max_update_id + 1}"
                         urllib.request.urlopen(urllib.request.Request(ack_url), timeout=2)
                     except Exception:
