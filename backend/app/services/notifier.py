@@ -137,7 +137,6 @@ def dispatch_live_message(
             payload = {
                 "chat_id": active_chat_id,
                 "text": tg_card,
-                "parse_mode": "Markdown",
                 "reply_markup": reply_markup
             }
 
@@ -148,7 +147,7 @@ def dispatch_live_message(
             )
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode())
-                print(f"[SUCCESS] [TELEGRAM DISPATCHED TO CHAT {TELEGRAM_CHAT_ID}]")
+                print(f"[SUCCESS] [TELEGRAM DISPATCHED TO CHAT {active_chat_id}]")
                 return {"success": True, "provider": "TELEGRAM", "data": data}
         except Exception as e:
             print(f"[TELEGRAM DISPATCH ERROR]: {e}")
