@@ -653,6 +653,10 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                     if up_id > max_update_id:
                         max_update_id = up_id
                     
+                    if up_id in PROCESSED_UPDATE_IDS:
+                        continue
+                    PROCESSED_UPDATE_IDS.add(up_id)
+                    
                     cb = u.get("callback_query")
                     msg = u.get("message")
                     
@@ -713,6 +717,52 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
         "status": tx.status,
         "chat_stream": chat_history,
         "pending_intent": TRANSACTION_PENDING_INTENTS.get(key, None)
+    }
+
+@app.post("/api/gateway/resend-prompt/{tx_id}")
+def resend_verification_prompt_route(tx_id: int, db: Session = Depends(get_db)):
+    tx = db.query(IncomingTransaction).filter(IncomingTransaction.id == tx_id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    settings = db.query(OrganizationSettings).first()
+    org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
+
+    active_lang = TRANSACTION_LANGUAGES.get(str(tx.id), "en")
+    template = LOCALIZED_TEMPLATES.get(active_lang, LOCALIZED_TEMPLATES["en"])
+    message = template["greeting"].format(
+        name=tx.remitter_name,
+        amount=tx.amount,
+        utr=tx.utr_number,
+        mode=tx.payment_mode
+    )
+
+    # 1. Dispatch live message with interactive buttons to phone / Telegram
+    dispatch_live_message(
+        to_phone=tx.remitter_phone,
+        message_text=message,
+        customer_name=tx.remitter_name,
+        sender_org=org_name,
+        tx_id=tx.id
+    )
+
+    # 2. In database, if customer has not replied yet, refresh the existing prompt rather than creating clutter
+    existing_messages = db.query(ChatMessageRecord).filter(ChatMessageRecord.transaction_id == tx.id).order_by(ChatMessageRecord.id.asc()).all()
+    customer_replied = any(m.sender == "customer" for m in existing_messages)
+
+    now_str = datetime.now().strftime("%I:%M %p")
+    if not customer_replied and existing_messages:
+        existing_messages[-1].timestamp = now_str
+        existing_messages[-1].text = message
+        db.commit()
+    else:
+        append_chat_message(tx, "staff", "LoopBack Autonomous AI Gateway (Re-sent)", message, now_str, db)
+
+    chat_stream = get_or_create_chat_stream(tx, db)
+    return {
+        "success": True,
+        "message": f"Verification prompt delivered to {tx.remitter_name}!",
+        "chat_stream": chat_stream
     }
 
 @app.post("/api/gateway/operator-reply/{tx_id}")
