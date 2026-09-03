@@ -702,24 +702,44 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
                         
                         text = msg.get("text", "").strip()
                         if text == "/start":
-                            welcome_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-                            welcome_card = (
-                                "🏢 *LOOPBACK AI SETTLEMENT GATEWAY*\n"
-                                "━━━━━━━━━━━━━━━━━━━━\n"
-                                "✅ *Telegram Live Carrier Rail Connected!*\n\n"
-                                "You are now linked to the live settlement engine. Any suspense alerts triggered in the portal will appear here with clickable action buttons.\n"
-                                "━━━━━━━━━━━━━━━━━━━━\n"
-                                "🔒 _Official Enterprise Settlement Rail_"
-                            )
-                            try:
-                                req_w = urllib.request.Request(
-                                    welcome_url,
-                                    data=json.dumps({"chat_id": chat_id, "text": welcome_card, "parse_mode": "Markdown"}).encode("utf-8"),
-                                    headers={"Content-Type": "application/json"}
+                            target_prompt_tx = tx if tx.status == TransactionStatus.SUSPENSE else db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).first()
+                            if target_prompt_tx:
+                                settings = db.query(OrganizationSettings).first()
+                                org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
+                                active_lang = TRANSACTION_LANGUAGES.get(str(target_prompt_tx.id), "en")
+                                template = LOCALIZED_TEMPLATES.get(active_lang, LOCALIZED_TEMPLATES["en"])
+                                prompt_text = template["greeting"].format(
+                                    name=target_prompt_tx.remitter_name,
+                                    amount=target_prompt_tx.amount,
+                                    utr=target_prompt_tx.utr_number,
+                                    mode=target_prompt_tx.payment_mode
                                 )
-                                urllib.request.urlopen(req_w, timeout=3)
-                            except Exception:
-                                pass
+                                dispatch_live_message(
+                                    to_phone=target_prompt_tx.remitter_phone,
+                                    message_text=prompt_text,
+                                    customer_name=target_prompt_tx.remitter_name,
+                                    sender_org=org_name,
+                                    tx_id=target_prompt_tx.id
+                                )
+                            else:
+                                welcome_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                                welcome_card = (
+                                    "🏢 *LOOPBACK AI SETTLEMENT GATEWAY*\n"
+                                    "━━━━━━━━━━━━━━━━━━━━\n"
+                                    "✅ *Telegram Live Carrier Rail Connected!*\n\n"
+                                    "You are linked to the live settlement engine. Select any suspense item in the portal to receive verification cards.\n"
+                                    "━━━━━━━━━━━━━━━━━━━━\n"
+                                    "🔒 _Official Enterprise Settlement Rail_"
+                                )
+                                try:
+                                    req_w = urllib.request.Request(
+                                        welcome_url,
+                                        data=json.dumps({"chat_id": chat_id, "text": welcome_card, "parse_mode": "Markdown"}).encode("utf-8"),
+                                        headers={"Content-Type": "application/json"}
+                                    )
+                                    urllib.request.urlopen(req_w, timeout=3)
+                                except Exception:
+                                    pass
                         elif text:
                             process_customer_reply(tx, text, button_id=None, ai_mode=ai_mode, db=db)
                             
@@ -740,6 +760,39 @@ def poll_incoming_replies(tx_id: int, ai_mode: bool = True, db: Session = Depend
         "chat_stream": chat_history,
         "pending_intent": TRANSACTION_PENDING_INTENTS.get(key, None)
     }
+
+class PairPhonePayload(BaseModel):
+    phone: str
+
+@app.post("/api/gateway/pair-phone")
+def pair_evaluator_phone(payload: PairPhonePayload, db: Session = Depends(get_db)):
+    clean_phone = re.sub(r"\D", "", payload.phone)
+    if clean_phone:
+        suspense_txs = db.query(IncomingTransaction).filter(IncomingTransaction.status == TransactionStatus.SUSPENSE).all()
+        for t in suspense_txs:
+            t.remitter_phone = clean_phone
+        db.commit()
+
+        active_chat_id = get_telegram_chat_id()
+        if active_chat_id and suspense_txs:
+            latest_tx = suspense_txs[0]
+            settings = db.query(OrganizationSettings).first()
+            org_name = settings.company_name if settings and settings.company_name else "LoopBack AI Enterprise"
+            template = LOCALIZED_TEMPLATES["en"]
+            prompt_text = template["greeting"].format(
+                name=latest_tx.remitter_name,
+                amount=latest_tx.amount,
+                utr=latest_tx.utr_number,
+                mode=latest_tx.payment_mode
+            )
+            dispatch_live_message(
+                to_phone=clean_phone,
+                message_text=prompt_text,
+                customer_name=latest_tx.remitter_name,
+                sender_org=org_name,
+                tx_id=latest_tx.id
+            )
+    return {"success": True, "phone": clean_phone}
 
 @app.post("/api/gateway/resend-prompt/{tx_id}")
 def resend_verification_prompt_route(tx_id: int, db: Session = Depends(get_db)):
